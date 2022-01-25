@@ -33,7 +33,8 @@ namespace px
         using precondition_type = _PreCondTy;
         using postcondition_type = _PostCondTy;
 
-        constexpr explicit conditional_contract(precondition_type&& pre_cond, postcondition_type&& post_cond)  noexcept(is_empty_contract_v<precondition_type>&& std::is_nothrow_move_constructible_v<postcondition_type>) :
+        constexpr explicit conditional_contract(precondition_type&& pre_cond, postcondition_type&& post_cond)
+            noexcept(is_empty_contract_v<precondition_type> && std::is_nothrow_move_constructible_v<postcondition_type>) :
             m_PostCond(std::move(post_cond))
         {
             if constexpr (!is_empty_contract_v<precondition_type>)
@@ -43,11 +44,11 @@ namespace px
             }
         }
 
-        constexpr explicit conditional_contract(postcondition_type post_cond)  noexcept(std::is_nothrow_move_constructible_v<postcondition_type>) :
+        constexpr explicit conditional_contract(postcondition_type post_cond) noexcept(std::is_nothrow_move_constructible_v<postcondition_type>) :
             conditional_contract(empty_contract{ }, std::move(post_cond))
         {}
 
-        constexpr explicit conditional_contract(precondition_type pre_cond)  noexcept(is_empty_contract_v<precondition_type>) :
+        constexpr explicit conditional_contract(precondition_type pre_cond) noexcept(is_empty_contract_v<precondition_type>) :
             conditional_contract(std::move(pre_cond), empty_contract{ })
         {}
 
@@ -73,9 +74,11 @@ namespace px
     class assert_contract
     {
     public:
-        constexpr explicit assert_contract(_CondTy assert_cond)
+        using assertcond_type = _CondTy;
+
+        constexpr explicit assert_contract(assertcond_type assert_cond)
         {
-            if constexpr (!is_empty_contract_v<_CondTy>)
+            if constexpr (!is_empty_contract_v<assertcond_type>)
             {
                 if (!assert_cond())
                     throw assert_exception(assert_cond.what());
@@ -98,7 +101,7 @@ namespace px
 
         constexpr bool operator()() const noexcept(is_immediate_result || std::is_nothrow_invocable_r_v<bool, call_or_result_type>)
         {
-            if constexpr (std::is_same_v<call_or_result_type, bool>)
+            if constexpr (is_immediate_result)
                 return m_Callback;
             else return m_Callback();
         }
@@ -110,7 +113,7 @@ namespace px
 
     private:
         const char* m_Message;
-        _CallbackTy m_Callback;
+        call_or_result_type m_Callback;
     };
 
 
@@ -146,14 +149,12 @@ namespace px
 
 #ifdef _DEBUG
     template<typename _CondTy>
-    constexpr auto assert_(_CondTy&& pred, const char* msg = "assert exception")
+    constexpr void assert_(_CondTy&& pred, const char* msg = "assert exception")
     {
-        return assert_contract(contract_object{ std::move(pred), msg });
+        assert_contract assert_tmp(contract_object{ std::move(pred), msg });
     }
 #else
     constexpr auto assert_(...)
-    {
-        return assert_contract(empty_contract{});
-    }
+    {}
 #endif
 }
